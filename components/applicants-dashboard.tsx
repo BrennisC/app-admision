@@ -1,57 +1,40 @@
 "use client";
 
 import { useDeferredValue, useEffect, useState } from "react";
-import type { SessionUser } from "./admission-app";
-import { OperationsConsole } from "./operations-console";
+import type { SessionUser } from "./auth/LoginScreen";
+import { AppShell, type AppSection } from "./shell/AppShell";
+import { DashboardSection } from "./dashboard/DashboardSection";
+import { PostulantesTable } from "./postulantes/PostulantesTable";
+import { EditApplicantModal } from "./postulantes/EditApplicantModal";
+import { ReportsSection } from "./reportes/ReportsSection";
+import { OperationsConsole } from "./operations/OperationsConsole";
+import { API_URL } from "./shared/api";
+import type { Applicant, ApplicantsResponse, DashboardData } from "./shared/types";
 
-interface Applicant {
-  id: number;
-  convocatoria: string;
-  nombres: string;
-  apellidos: string;
-  dni: string;
-  facultad: string;
-  carrera: string;
-  tipoColegio: string;
-  puntaje: number | null;
-  estado: string;
-}
-
-interface ApplicantsResponse {
-  data: Applicant[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const PAGE_SIZE = 15;
 
 export function ApplicantsDashboard({ token, user, onLogout }: { token: string; user: SessionUser; onLogout: () => void }) {
+  const [section, setSection] = useState<AppSection>("postulantes");
   const [response, setResponse] = useState<ApplicantsResponse>();
+  const [dashboard, setDashboard] = useState<DashboardData>();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+  const [editing, setEditing] = useState<Applicant | null>(null);
   const deferredSearch = useDeferredValue(search);
 
   useEffect(() => {
-    const reload = () => setRevision((value) => value + 1);
+    const reload = () => setRevision((v) => v + 1);
     window.addEventListener("postulantes-updated", reload);
     return () => window.removeEventListener("postulantes-updated", reload);
   }, []);
 
   useEffect(() => {
     const controller = new AbortController();
-    const params = new URLSearchParams({
-      page: String(page),
-      limit: String(PAGE_SIZE),
-    });
+    const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
     if (deferredSearch) params.set("search", deferredSearch);
     if (status) params.set("estado", status);
 
@@ -65,260 +48,86 @@ export function ApplicantsDashboard({ token, user, onLogout }: { token: string; 
         });
         if (!result.ok) throw new Error("La API no pudo obtener los postulantes");
         setResponse((await result.json()) as ApplicantsResponse);
-      } catch (requestError) {
-        if (requestError instanceof Error && requestError.name !== "AbortError") {
-          setError(requestError.message);
-        }
+      } catch (e) {
+        if (e instanceof Error && e.name !== "AbortError") setError(e.message);
       } finally {
         if (!controller.signal.aborted) setIsLoading(false);
       }
     }
-
     void loadApplicants();
     return () => controller.abort();
   }, [deferredSearch, page, revision, status, token]);
 
-  const firstResult = response?.meta.total
-    ? (response.meta.page - 1) * response.meta.limit + 1
-    : 0;
-  const lastResult = response
-    ? Math.min(response.meta.page * response.meta.limit, response.meta.total)
-    : 0;
+  useEffect(() => {
+    if (section !== "resumen" && section !== "reportes") return;
+    const controller = new AbortController();
+    async function loadDashboard() {
+      try {
+        const result = await fetch(`${API_URL}/dashboard`, {
+          signal: controller.signal,
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (result.ok) setDashboard((await result.json()) as DashboardData);
+      } catch { /* Progresivo: se muestra la tabla aunque falle. */ }
+    }
+    void loadDashboard();
+    return () => controller.abort();
+  }, [section, revision, token]);
+
+  function handleSection(next: AppSection, flowScreen?: string) {
+    setSection(next);
+    if (next === "flujo" && flowScreen) {
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("open-operation", { detail: flowScreen }));
+        document.getElementById("operaciones")?.scrollIntoView({ behavior: "smooth" });
+      }, 30);
+    }
+  }
+
+  const canWrite = user.role === "ADMIN" || user.role === "ADMISION";
+  const sidebarNote = dashboard
+    ? `${new Intl.NumberFormat("es-PE").format(dashboard.postulantes)} postulantes · S/ ${dashboard.recaudacion.toFixed(2)} recaudado`
+    : "7,693 registros históricos";
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark" aria-hidden="true">UA</div>
-          <div>
-            <strong>Admisión UNAS</strong>
-            <span>Gestión académica</span>
-          </div>
+    <AppShell section={section} onSection={handleSection} user={user} error={error} sidebarNote={sidebarNote} onLogout={onLogout}>
+      {section === "resumen" && (
+        <DashboardSection dashboard={dashboard} totalFallback={response?.meta.total} onGo={(s) => handleSection("flujo", s)} />
+      )}
+      {section === "reportes" && <ReportsSection token={token} dashboard={dashboard} />}
+      {(section === "postulantes" || section === "resumen") && (
+        <PostulantesTable
+          response={response}
+          search={search}
+          onSearch={(v) => { setSearch(v); setPage(1); }}
+          status={status}
+          onStatus={(v) => { setStatus(v); setPage(1); }}
+          page={page}
+          onPage={(fn) => setPage(fn)}
+          isLoading={isLoading}
+          error={error}
+          canWrite={canWrite}
+          onNew={() => handleSection("flujo", "postulante")}
+          onEdit={setEditing}
+        />
+      )}
+      {(section === "flujo" || section === "postulantes") && (
+        <div style={{ marginTop: section === "postulantes" ? 18 : 0 }}>
+          <OperationsConsole token={token} role={user.role} />
         </div>
-
-        <nav className="main-nav" aria-label="Navegación principal">
-          <p>General</p>
-          <a href="#resumen"><NavIcon name="grid" />Resumen</a>
-          <p>Admisión</p>
-          <a className="active" href="#postulantes"><NavIcon name="users" />Postulantes</a>
-          <a href="#inscripciones"><NavIcon name="file" />Inscripciones</a>
-          <a href="#operaciones"><NavIcon name="calendar" />Convocatorias</a>
-          <a href="#operaciones"><NavIcon name="book" />Carreras</a>
-          <p>Tesorería</p>
-          <a href="#tesoreria"><NavIcon name="wallet" />Pagos</a>
-          <a href="#resultados"><NavIcon name="chart" />Resultados</a>
-        </nav>
-
-        <div className="sidebar-note">
-          <span>Fuente activa</span>
-          <strong>sistema XLSX</strong>
-          <small>7,693 registros históricos</small>
-        </div>
-      </aside>
-
-      <main className="main-content">
-        <header className="topbar">
-          <div>
-            <span className="eyebrow">Proceso de admisión</span>
-            <h1>Postulantes</h1>
-          </div>
-          <div className="topbar-actions">
-            <span className={`api-indicator ${error ? "offline" : ""}`}>
-              <i />{error ? "API sin conexión" : "API conectada"}
-            </span>
-            <div className="user-menu">
-              <button className="avatar" type="button" aria-label="Cerrar sesión" onClick={onLogout}>{initials(user.name, "")}</button>
-              <span><strong>{user.name}</strong><small>{user.role}</small></span>
-            </div>
-          </div>
-        </header>
-
-        <section className="summary-grid" id="resumen" aria-label="Resumen">
-          <article className="summary-card primary">
-            <span>Total registrado</span>
-            <strong>{formatNumber(response?.meta.total)}</strong>
-            <small>Base histórica consolidada</small>
-          </article>
-          <article className="summary-card">
-            <span>Vista actual</span>
-            <strong>{response?.data.length ?? 0}</strong>
-            <small>Registros en esta página</small>
-          </article>
-          <article className="summary-card">
-            <span>Convocatoria</span>
-            <strong>{response?.data[0]?.convocatoria || "—"}</strong>
-            <small>Primera coincidencia</small>
-          </article>
-        </section>
-
-        <OperationsConsole token={token} />
-
-        <section className="data-panel" id="postulantes">
-          <div className="panel-heading">
-            <div>
-              <h2>Registro de postulantes</h2>
-              <p>Consulta la información importada desde el archivo institucional.</p>
-            </div>
-            <button className="primary-button" type="button" onClick={() => {
-              window.dispatchEvent(new CustomEvent("open-operation", { detail: "postulante" }));
-              document.getElementById("operaciones")?.scrollIntoView({ behavior: "smooth" });
-            }}>
-              <span>+</span> Nuevo postulante
-            </button>
-          </div>
-
-          <div className="filters">
-            <label className="search-field">
-              <span className="sr-only">Buscar postulante</span>
-              <SearchIcon />
-              <input
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
-                placeholder="Buscar por DNI, nombres, apellidos o carrera"
-              />
-              {search && (
-                <button type="button" onClick={() => setSearch("")} aria-label="Limpiar búsqueda">×</button>
-              )}
-            </label>
-            <label className="select-field">
-              <span>Estado</span>
-              <select
-                value={status}
-                onChange={(event) => {
-                  setStatus(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">Todos</option>
-                <option value="Ingresante">Ingresante</option>
-                <option value="No Ingresante">No ingresante</option>
-                <option value="Ausente">Ausente</option>
-              </select>
-            </label>
-          </div>
-
-          {error ? (
-            <div className="feedback error-box" role="alert">
-              <strong>No pudimos conectar con el backend.</strong>
-              <span>{error}. Ejecuta <code>pnpm dev</code> para iniciar ambas aplicaciones.</span>
-            </div>
-          ) : (
-            <>
-              <div className="table-wrap" aria-busy={isLoading}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Postulante</th>
-                      <th>DNI</th>
-                      <th>Convocatoria</th>
-                      <th>Carrera</th>
-                      <th>Puntaje</th>
-                      <th>Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {isLoading ? (
-                      Array.from({ length: 7 }, (_, index) => <SkeletonRow key={index} />)
-                    ) : response?.data.length ? (
-                      response.data.map((applicant) => (
-                        <tr key={applicant.id}>
-                          <td data-label="Postulante">
-                            <div className="person-cell">
-                              <span>{initials(applicant.nombres, applicant.apellidos)}</span>
-                              <div>
-                                <strong>{applicant.nombres} {applicant.apellidos}</strong>
-                                <small>{applicant.facultad || "Facultad no registrada"}</small>
-                              </div>
-                            </div>
-                          </td>
-                          <td data-label="DNI" className="mono">{applicant.dni}</td>
-                          <td data-label="Convocatoria">{applicant.convocatoria || "—"}</td>
-                          <td data-label="Carrera">{applicant.carrera || "—"}</td>
-                          <td data-label="Puntaje" className="score">{applicant.puntaje ?? "—"}</td>
-                          <td data-label="Estado"><StatusBadge status={applicant.estado} /></td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={6}>
-                          <div className="empty-state">
-                            <strong>No encontramos coincidencias</strong>
-                            <span>Prueba con otro DNI, nombre o estado.</span>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <footer className="pagination">
-                <span>Mostrando {firstResult}–{lastResult} de {formatNumber(response?.meta.total)}</span>
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setPage((current) => current - 1)}
-                    disabled={isLoading || page <= 1}
-                  >
-                    Anterior
-                  </button>
-                  <b>Página {page} de {response?.meta.totalPages || 1}</b>
-                  <button
-                    type="button"
-                    onClick={() => setPage((current) => current + 1)}
-                    disabled={isLoading || page >= (response?.meta.totalPages ?? 1)}
-                  >
-                    Siguiente
-                  </button>
-                </div>
-              </footer>
-            </>
-          )}
-        </section>
-      </main>
-    </div>
+      )}
+      {editing && (
+        <EditApplicantModal
+          applicant={editing}
+          token={token}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            setRevision((v) => v + 1);
+            window.dispatchEvent(new Event("postulantes-updated"));
+          }}
+        />
+      )}
+    </AppShell>
   );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const normalized = status.toLocaleLowerCase("es");
-  const tone = normalized === "ingresante" ? "success" : normalized.includes("no") ? "neutral" : "warning";
-  return <span className={`status-badge ${tone}`}>{status || "Sin estado"}</span>;
-}
-
-function SkeletonRow() {
-  return (
-    <tr className="skeleton-row" aria-hidden="true">
-      <td><i className="wide" /></td><td><i /></td><td><i /></td>
-      <td><i className="wide" /></td><td><i /></td><td><i /></td>
-    </tr>
-  );
-}
-
-function initials(names: string, surnames: string) {
-  return `${names.trim()[0] ?? ""}${surnames.trim()[0] ?? ""}`.toUpperCase();
-}
-
-function formatNumber(value?: number) {
-  return value === undefined ? "—" : new Intl.NumberFormat("es-PE").format(value);
-}
-
-function SearchIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>;
-}
-
-function NavIcon({ name }: { name: string }) {
-  const paths: Record<string, string> = {
-    grid: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z",
-    users: "M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 20v-2a4 4 0 0 0-3-3.87M16 2.13a4 4 0 0 1 0 7.75",
-    file: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h8",
-    calendar: "M3 5h18v16H3zM16 3v4M8 3v4M3 10h18",
-    book: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5zM4 5.5V19",
-    wallet: "M3 6h18v14H3zM3 9h18M16 14h2",
-    chart: "M4 20V10M10 20V4M16 20v-7M22 20H2",
-  };
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d={paths[name]} /></svg>;
 }

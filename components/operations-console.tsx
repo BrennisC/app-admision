@@ -41,8 +41,14 @@ const SCREENS: { id: Screen; label: string; step: string }[] = [
   { id: "auditoria", label: "Auditoría", step: "—" },
 ];
 
-export function OperationsConsole({ token }: { token: string }) {
+export function OperationsConsole({ token, role }: { token: string; role?: string }) {
   const [screen, setScreen] = useState<Screen>("inscripcion");
+  const visibleScreens = SCREENS.filter((item) => {
+    if (!role || role === "ADMIN") return true;
+    if (role === "ADMISION") return ["postulante", "inscripcion", "resultados", "catalogos", "ordenes"].includes(item.id);
+    if (role === "TESORERIA" || role === "CAJERO") return ["ordenes", "tesoreria", "auditoria"].includes(item.id);
+    return ["ordenes", "resultados", "auditoria"].includes(item.id);
+  });
   const [resources, setResources] = useState<Resources>(EMPTY_RESOURCES);
   const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string }>();
   const [loading, setLoading] = useState(true);
@@ -103,7 +109,7 @@ export function OperationsConsole({ token }: { token: string }) {
         <span className="sync-state">{loading ? "Sincronizando..." : "Datos actualizados"}</span>
       </div>
       <div className="workflow-tabs" role="tablist" aria-label="Módulos del sistema">
-        {SCREENS.map((item) => (
+        {visibleScreens.map((item) => (
           <button key={item.id} className={screen === item.id ? "active" : ""} onClick={() => { setScreen(item.id); setNotice(undefined); }} role="tab" aria-selected={screen === item.id}>
             <span>{item.step}</span>{item.label}
           </button>
@@ -150,10 +156,16 @@ function EnrollmentScreen({ resources, api, submit }: { resources: Resources; ap
   const [dni, setDni] = useState("");
   const [applicant, setApplicant] = useState<Row>();
   const [lookupError, setLookupError] = useState("");
+  const [filter, setFilter] = useState("");
   async function findApplicant() {
     setLookupError(""); setApplicant(undefined);
     try { setApplicant(await api<Row>(`/postulantes/dni/${dni}`)); } catch (error) { setLookupError(error instanceof Error ? error.message : "No encontrado"); }
   }
+  const filtered = resources.inscripciones.filter((row) => {
+    if (!filter) return true;
+    const hay = `${text(row.id_inscripcion)} ${text(row.estado)} ${text(row.modalidad)}`.toLowerCase();
+    return hay.includes(filter.toLowerCase());
+  });
   return (
     <ScreenLayout title="Crear inscripción" description="Localiza al postulante y genera una orden de pago automáticamente." aside="Una persona solo puede mantener una inscripción activa por convocatoria.">
       <div className="lookup-row"><Field label="DNI del postulante"><input value={dni} onChange={(event) => setDni(event.target.value)} maxLength={8} /></Field><button type="button" className="secondary-button" onClick={findApplicant} disabled={dni.length !== 8}>Buscar persona</button></div>
@@ -162,48 +174,72 @@ function EnrollmentScreen({ resources, api, submit }: { resources: Resources; ap
       <form className="operation-form" id="inscripciones" onSubmit={async (event) => {
         event.preventDefault(); if (!applicant) return;
         const form = new FormData(event.currentTarget);
-        await submit("/inscripciones", { idPostulante: number(applicant.id), idConvocatoria: number(form.get("idConvocatoria")), idCarrera: number(form.get("idCarrera")), modalidad: text(form.get("modalidad")), idConcepto: number(form.get("idConcepto")) }, "Inscripción y orden de pago creadas");
+        const ok = await submit("/inscripciones", { idPostulante: number(applicant.id), idConvocatoria: number(form.get("idConvocatoria")), idCarrera: number(form.get("idCarrera")), modalidad: text(form.get("modalidad")), idConcepto: number(form.get("idConcepto")) }, "Inscripción y orden de pago creadas");
+        if (ok) setApplicant(undefined);
       }}>
-        <Field label="Convocatoria"><select name="idConvocatoria" required><option value="">Seleccionar</option>{resources.catalogos.convocatorias.map((row) => <option key={text(row.id_convocatoria)} value={text(row.id_convocatoria)}>{text(row.nombre)}</option>)}</select></Field>
+        <Field label="Convocatoria"><select name="idConvocatoria" required><option value="">Seleccionar</option>{resources.catalogos.convocatorias.map((row) => <option key={text(row.id_convocatoria)} value={text(row.id_convocatoria)}>{text(row.nombre)} · {text(row.estado)}</option>)}</select></Field>
         <Field label="Carrera"><select name="idCarrera" required><option value="">Seleccionar</option>{resources.catalogos.carreras.map((row) => <option key={text(row.id_carrera)} value={text(row.id_carrera)}>{text(row.nombre)}</option>)}</select></Field>
         <Field label="Modalidad"><select name="modalidad" required><option value="ORDINARIO">Ordinario</option><option value="PRIMEROS_PUESTOS">Primeros puestos</option><option value="TRASLADO">Traslado</option></select></Field>
         <Field label="Concepto de pago"><select name="idConcepto" required>{resources.catalogos.conceptosPago.map((row) => <option key={text(row.id_concepto)} value={text(row.id_concepto)}>{text(row.descripcion)} · S/ {text(row.monto)}</option>)}</select></Field>
         <FormActions label="Crear inscripción y orden" disabled={!applicant} />
       </form>
+      <h3 className="subsection-title">Inscripciones registradas ({filtered.length})</h3>
+      <div className="lookup-row"><Field label="Filtrar por estado o modalidad"><input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Ej: PAGADO, PENDIENTE_PAGO…" /></Field></div>
+      <DataTable rows={filtered} columns={["id_inscripcion", "id_postulante", "id_carrera", "modalidad", "estado"]} action={(row) => row.estado === "PAGADO" ? { label: "Confirmar", onClick: () => void submit(`/inscripciones/${text(row.id_inscripcion)}/confirmacion`, {}, "Inscripción confirmada") } : undefined} />
     </ScreenLayout>
   );
 }
 
 function OrdersScreen({ orders }: { orders: Row[] }) {
-  return <ScreenLayout title="Órdenes de pago" description="Deudas generadas desde inscripciones válidas." aside={`${orders.filter((row) => row.estado === "PENDIENTE").length} órdenes pendientes de cobro.`}><DataTable rows={orders} columns={["codigo", "id_inscripcion", "monto", "fecha_vencimiento", "estado"]} /></ScreenLayout>;
+  const [q, setQ] = useState("");
+  const [estado, setEstado] = useState("");
+  const filtered = orders.filter((row) => {
+    if (estado && row.estado !== estado) return false;
+    if (!q) return true;
+    return `${text(row.codigo)} ${text(row.id_inscripcion)}`.toLowerCase().includes(q.toLowerCase());
+  });
+  return (
+    <ScreenLayout title="Órdenes de pago" description="Deudas generadas desde inscripciones válidas. La anulación controlada llega con el backend (POST /ordenes-pago/:id/anulacion)." aside={`${orders.filter((row) => row.estado === "PENDIENTE").length} órdenes pendientes de cobro.`}>
+      <div className="lookup-row">
+        <Field label="Buscar por código o inscripción"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="OP-2026-…" /></Field>
+        <Field label="Estado"><select value={estado} onChange={(e) => setEstado(e.target.value)}><option value="">Todos</option><option value="PENDIENTE">Pendiente</option><option value="PAGADA">Pagada</option><option value="ANULADA">Anulada</option></select></Field>
+      </div>
+      <DataTable rows={filtered} columns={["codigo", "id_inscripcion", "monto", "fecha_vencimiento", "estado"]} />
+    </ScreenLayout>
+  );
 }
 
 function TreasuryScreen({ resources, api, submit }: { resources: Resources; api: Api; submit: Submit }) {
   const openCash = resources.cajas.find((row) => row.estado === "ABIERTA");
   const pendingOrders = resources.ordenes.filter((row) => row.estado === "PENDIENTE");
+  const [metodo, setMetodo] = useState("EFECTIVO");
+  const totalPagos = resources.pagos.filter((r) => r.estado === "CONFIRMADO").reduce((s, r) => s + Number(r.monto), 0);
   return (
-    <ScreenLayout title="Caja y registro de pago" description="Abre una caja y aplica pagos a órdenes pendientes." aside={openCash ? `Caja ${text(openCash.id_caja)} abierta por ${text(openCash.usuario)}.` : "Debes abrir una caja antes de cobrar."}>
+    <ScreenLayout title="Caja y registro de pago" description="Abre una caja, cobra órdenes pendientes y emite comprobante sin duplicar el pago." aside={openCash ? `Caja ${text(openCash.id_caja)} abierta por ${text(openCash.usuario)} · saldo inicial S/ ${Number(openCash.saldo_inicial).toFixed(2)}.` : "Debes abrir una caja antes de cobrar. Una caja cerrada no acepta movimientos."}>
       {!openCash ? (
         <form className="compact-action" id="tesoreria" onSubmit={async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); await submit("/cajas/apertura", { saldoInicial: number(form.get("saldoInicial")) }, "Caja abierta correctamente"); }}>
           <Field label="Saldo inicial"><input name="saldoInicial" type="number" min="0" step="0.01" defaultValue="0" required /></Field><button className="secondary-button">Abrir caja</button>
         </form>
       ) : (
         <form className="compact-action" onSubmit={async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); await submit(`/cajas/${text(openCash.id_caja)}/cierre`, { saldoFinal: number(form.get("saldoFinal")) }, "Caja cerrada y arqueada"); }}>
-          <Field label="Saldo final declarado"><input name="saldoFinal" type="number" min="0" step="0.01" required /></Field><button className="secondary-button">Cerrar caja</button>
+          <Field label="Saldo final declarado (arqueo)"><input name="saldoFinal" type="number" min="0" step="0.01" required /></Field><button className="secondary-button">Cerrar caja con arqueo</button>
         </form>
       )}
       <form className="operation-form payment-form" onSubmit={async (event) => {
         event.preventDefault(); const form = new FormData(event.currentTarget); const order = pendingOrders.find((row) => number(row.id_orden) === number(form.get("idOrden")));
-        const ok = await submit("/pagos", { idOrden: number(form.get("idOrden")), monto: number(order?.monto), metodoPago: text(form.get("metodoPago")), voucher: text(form.get("voucher")) }, "Pago confirmado y movimiento de caja registrado");
+        if (metodo !== "EFECTIVO" && !text(form.get("voucher")).trim()) return;
+        const ok = await submit("/pagos", { idOrden: number(form.get("idOrden")), monto: number(order?.monto), metodoPago: metodo, voucher: text(form.get("voucher")) }, "Pago confirmado y movimiento de caja registrado");
         if (ok) event.currentTarget.reset();
       }}>
-        <Field label="Orden pendiente" wide><select name="idOrden" required><option value="">Seleccionar orden</option>{pendingOrders.map((row) => <option key={text(row.id_orden)} value={text(row.id_orden)}>{text(row.codigo)} · S/ {text(row.monto)}</option>)}</select></Field>
-        <Field label="Método"><select name="metodoPago"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>BANCO</option><option>YAPE</option><option>PLIN</option><option>TARJETA</option></select></Field>
-        <Field label="Voucher"><input name="voucher" placeholder="Obligatorio excepto efectivo" /></Field>
+        <Field label="Orden pendiente" wide><select name="idOrden" required><option value="">Seleccionar orden</option>{pendingOrders.map((row) => <option key={text(row.id_orden)} value={text(row.id_orden)}>{text(row.codigo)} · S/ {text(row.monto)} · insc #{text(row.id_inscripcion)}</option>)}</select></Field>
+        <Field label="Método"><select name="metodoPago" value={metodo} onChange={(e) => setMetodo(e.target.value)}><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>BANCO</option><option>YAPE</option><option>PLIN</option><option>TARJETA</option></select></Field>
+        <Field label={`Voucher ${metodo === "EFECTIVO" ? "(opcional)" : "(obligatorio)"}`}><input name="voucher" placeholder={metodo === "EFECTIVO" ? "Solo si aplica" : "N° operación / voucher"} required={metodo !== "EFECTIVO"} /></Field>
         <FormActions label="Confirmar pago" disabled={!openCash || !pendingOrders.length} />
       </form>
-      <h3 className="subsection-title">Últimos pagos</h3>
-      <div className="receipt-list">{resources.pagos.slice(0, 8).map((row) => <div key={text(row.id_pago)}><span><strong>{text(row.codigo_pago)}</strong><small>S/ {Number(row.monto).toFixed(2)} · {text(row.metodo_pago)}</small></span><button onClick={() => void printReceipt(number(row.id_pago), api)}>Ver comprobante</button></div>)}{!resources.pagos.length && <div className="mini-empty">Todavía no hay pagos.</div>}</div>
+      <h3 className="subsection-title">Últimos pagos · total S/ {totalPagos.toFixed(2)}</h3>
+      <div className="receipt-list">{resources.pagos.slice(0, 8).map((row) => <div key={text(row.id_pago)}><span><strong>{text(row.codigo_pago)}</strong><small>S/ {Number(row.monto).toFixed(2)} · {text(row.metodo_pago)} · {text(row.voucher) || "sin voucher"}</small></span><button onClick={() => void printReceipt(number(row.id_pago), api)}>Ver comprobante</button></div>)}{!resources.pagos.length && <div className="mini-empty">Todavía no hay pagos.</div>}</div>
+      <h3 className="subsection-title">Historial de cajas</h3>
+      <DataTable rows={resources.cajas} columns={["id_caja", "usuario", "saldo_inicial", "saldo_final", "estado"]} />
     </ScreenLayout>
   );
 }
@@ -269,9 +305,12 @@ function FormActions({ label, disabled }: { label: string; disabled?: boolean })
   return <div className="form-actions"><button type="submit" className="primary-button" disabled={disabled}>{label}</button></div>;
 }
 
-function DataTable({ rows, columns }: { rows: Row[]; columns: string[] }) {
+function DataTable({ rows, columns, action }: { rows: Row[]; columns: string[]; action?: (row: Row) => { label: string; onClick: () => void } | undefined }) {
   if (!rows.length) return <div className="mini-empty">Todavía no hay registros.</div>;
-  return <div className="mini-table"><table><thead><tr>{columns.map((column) => <th key={column}>{column.replaceAll("_", " ")}</th>)}</tr></thead><tbody>{rows.slice(0, 15).map((row, index) => <tr key={String(row[columns[0]]) || index}>{columns.map((column) => <td key={column}>{formatCell(row[column], column)}</td>)}</tr>)}</tbody></table></div>;
+  return <div className="mini-table"><table><thead><tr>{columns.map((column) => <th key={column}>{column.replaceAll("_", " ")}</th>)}{action && <th>Acción</th>}</tr></thead><tbody>{rows.slice(0, 15).map((row, index) => {
+    const act = action?.(row);
+    return <tr key={String(row[columns[0]]) || index}>{columns.map((column) => <td key={column}>{formatCell(row[column], column)}</td>)}{action && <td>{act ? <button className="secondary-button" style={{ height: 30, padding: "0 10px" }} onClick={act.onClick}>{act.label}</button> : <span style={{ color: "#8a9490" }}>—</span>}</td>}</tr>;
+  })}</tbody></table></div>;
 }
 
 type Submit = (path: string, data: Row, success: string, method?: string) => Promise<boolean>;

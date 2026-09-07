@@ -1,0 +1,16 @@
+.panel { margin-bottom: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 5px; background: white; }
+.header { display: flex; align-items: center; justify-content: space-between; padding: 24px 27px 18px; }
+.header h2 { margin: 5px 0 0; font-size: 1.2rem; letter-spacing: -.03em; }
+.sync { color: #6f7b76; font-size: .68rem; }
+.tabs { display: flex; gap: 4px; padding: 0 21px 12px; overflow-x: auto; border-bottom: 1px solid var(--line); }
+.tabs button { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; min-height: 38px; padding: 0 11px; border: 0; border-radius: 3px; color: #68736e; background: transparent; font-size: .7rem; font-weight: 700; }
+.tabs button span { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 7px; color: #74817b; background: #edf1ee; font-size: .58rem; }
+.active { color: white !important; background: var(--forest) !important; }
+.active span { color: var(--forest) !important; background: var(--lime) !important; }
+.notice { margin: 16px 27px 0; padding: 11px 13px; border-radius: 8px; font-size: .72rem; }
+.success { color: #17613f; background: #e4f5eb; }
+.error { color: #8a3225; background: #fff0ed; }
+.screen { padding: 25px 27px 30px; }
+@media (max-width: 720px) {
+  .header, .screen { padding-left: 20px; padding-right: 20px; }
+}

@@ -1,0 +1,33 @@
+.page { display: grid; grid-template-columns: minmax(340px, .9fr) minmax(420px, 1.1fr); min-height: 100vh; }
+.intro { position: relative; overflow: hidden; padding: clamp(45px, 7vw, 100px); color: white; background: var(--forest); background-image: repeating-linear-gradient(0deg, transparent 0 55px, #ffffff09 55px 56px); }
+.intro::after { content: ""; position: absolute; right: -150px; bottom: -180px; width: 440px; height: 440px; border: 1px solid #dcec8630; border-radius: 50%; box-shadow: 0 0 0 65px #dcec8608, 0 0 0 130px #dcec8606; }
+.seal { display: grid; width: 54px; height: 54px; place-items: center; margin-bottom: 65px; border-radius: 15px; color: var(--forest); background: var(--lime); font-weight: 900; }
+.intro > span { color: var(--lime); font-size: .7rem; font-weight: 800; letter-spacing: .02em; }
+.intro h1 { max-width: 600px; margin: 14px 0 22px; font-size: clamp(2.7rem, 5.5vw, 5.7rem); line-height: .94; letter-spacing: -.07em; }
+.intro > p { max-width: 500px; color: #bcd0c8; font-size: .95rem; line-height: 1.7; }
+.flow { position: absolute; z-index: 1; bottom: 10%; display: flex; align-items: center; gap: 10px; color: #c8d9d2; font-size: .68rem; }
+.flow i { width: 27px; height: 1px; background: #dcec8666; }
+.cardWrap { display: grid; place-items: center; padding: 35px; background: #f3f5f1; }
+.card { width: min(100%, 420px); padding: 42px; border: 1px solid var(--line); border-radius: 5px; background: white; box-shadow: 12px 12px 0 #dfe7df; }
+.card h2 { margin: 9px 0 7px; font-size: 2rem; letter-spacing: -.05em; }
+.card > p { margin: 0 0 28px; color: var(--muted); font-size: .8rem; }
+.card label { display: block; margin: 15px 0; color: #53605b; font-size: .7rem; font-weight: 700; }
+.card input { display: block; width: 100%; height: 45px; margin-top: 7px; padding: 0 13px; border: 1px solid #d5ddd8; border-radius: 9px; outline: none; }
+.card input:focus { border-color: var(--forest-bright); box-shadow: 0 0 0 3px #1f6b5014; }
+.card > button { width: 100%; height: 46px; margin-top: 10px; border: 0; border-radius: 9px; color: white; background: var(--forest-bright); font-weight: 800; }
+.card > small { display: block; margin-top: 18px; color: #929b97; font-size: .63rem; text-align: center; }
+.error { padding: 10px 12px; border-radius: 8px; color: #8a3225; background: #fff0ed; font-size: .7rem; }
+.passwordField { position: relative; width: 100%; }
+.passwordField input { width: 100%; padding-right: 48px; }
+.eye { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0; border: none; background: transparent; cursor: pointer; font-size: 18px; }
+.eye:hover { background: rgba(0, 0, 0, 0.05); border-radius: 8px; }
+
+@media (max-width: 720px) {
+  .page { display: block; }
+  .intro { min-height: 330px; padding: 38px 27px; }
+  .seal { margin-bottom: 35px; }
+  .intro h1 { font-size: 3rem; }
+  .flow { display: none; }
+  .cardWrap { padding: 25px 14px 45px; }
+  .card { margin-top: -42px; padding: 28px 22px; }
+}
