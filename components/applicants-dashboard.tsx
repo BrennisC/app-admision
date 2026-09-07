@@ -1,6 +1,8 @@
 "use client";
 
 import { useDeferredValue, useEffect, useState } from "react";
+import type { SessionUser } from "./admission-app";
+import { OperationsConsole } from "./operations-console";
 
 interface Applicant {
   id: number;
@@ -28,14 +30,21 @@ interface ApplicantsResponse {
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const PAGE_SIZE = 15;
 
-export function ApplicantsDashboard() {
+export function ApplicantsDashboard({ token, user, onLogout }: { token: string; user: SessionUser; onLogout: () => void }) {
   const [response, setResponse] = useState<ApplicantsResponse>();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [revision, setRevision] = useState(0);
   const deferredSearch = useDeferredValue(search);
+
+  useEffect(() => {
+    const reload = () => setRevision((value) => value + 1);
+    window.addEventListener("postulantes-updated", reload);
+    return () => window.removeEventListener("postulantes-updated", reload);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -52,6 +61,7 @@ export function ApplicantsDashboard() {
       try {
         const result = await fetch(`${API_URL}/postulantes?${params}`, {
           signal: controller.signal,
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (!result.ok) throw new Error("La API no pudo obtener los postulantes");
         setResponse((await result.json()) as ApplicantsResponse);
@@ -66,7 +76,7 @@ export function ApplicantsDashboard() {
 
     void loadApplicants();
     return () => controller.abort();
-  }, [deferredSearch, page, status]);
+  }, [deferredSearch, page, revision, status, token]);
 
   const firstResult = response?.meta.total
     ? (response.meta.page - 1) * response.meta.limit + 1
@@ -91,12 +101,12 @@ export function ApplicantsDashboard() {
           <a href="#resumen"><NavIcon name="grid" />Resumen</a>
           <p>Admisión</p>
           <a className="active" href="#postulantes"><NavIcon name="users" />Postulantes</a>
-          <a href="#proximamente"><NavIcon name="file" />Inscripciones</a>
-          <a href="#proximamente"><NavIcon name="calendar" />Convocatorias</a>
-          <a href="#proximamente"><NavIcon name="book" />Carreras</a>
+          <a href="#inscripciones"><NavIcon name="file" />Inscripciones</a>
+          <a href="#operaciones"><NavIcon name="calendar" />Convocatorias</a>
+          <a href="#operaciones"><NavIcon name="book" />Carreras</a>
           <p>Tesorería</p>
-          <a href="#proximamente"><NavIcon name="wallet" />Pagos</a>
-          <a href="#proximamente"><NavIcon name="chart" />Reportes</a>
+          <a href="#tesoreria"><NavIcon name="wallet" />Pagos</a>
+          <a href="#resultados"><NavIcon name="chart" />Resultados</a>
         </nav>
 
         <div className="sidebar-note">
@@ -116,7 +126,10 @@ export function ApplicantsDashboard() {
             <span className={`api-indicator ${error ? "offline" : ""}`}>
               <i />{error ? "API sin conexión" : "API conectada"}
             </span>
-            <button className="avatar" type="button" aria-label="Cuenta de usuario">AD</button>
+            <div className="user-menu">
+              <button className="avatar" type="button" aria-label="Cerrar sesión" onClick={onLogout}>{initials(user.name, "")}</button>
+              <span><strong>{user.name}</strong><small>{user.role}</small></span>
+            </div>
           </div>
         </header>
 
@@ -138,13 +151,18 @@ export function ApplicantsDashboard() {
           </article>
         </section>
 
+        <OperationsConsole token={token} />
+
         <section className="data-panel" id="postulantes">
           <div className="panel-heading">
             <div>
               <h2>Registro de postulantes</h2>
               <p>Consulta la información importada desde el archivo institucional.</p>
             </div>
-            <button className="primary-button" type="button" disabled title="Disponible en el siguiente incremento">
+            <button className="primary-button" type="button" onClick={() => {
+              window.dispatchEvent(new CustomEvent("open-operation", { detail: "postulante" }));
+              document.getElementById("operaciones")?.scrollIntoView({ behavior: "smooth" });
+            }}>
               <span>+</span> Nuevo postulante
             </button>
           </div>

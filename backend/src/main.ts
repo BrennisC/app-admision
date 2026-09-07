@@ -23,6 +23,7 @@ async function bootstrap() {
     .setTitle("API del Sistema de Admision")
     .setDescription("TPS de Admision y Tesoreria")
     .setVersion("0.1.0")
+    .addBearerAuth()
     .build();
   SwaggerModule.setup("docs", app, SwaggerModule.createDocument(app, swaggerConfig));
 

@@ -1,7 +1,8 @@
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { Injectable } from "@nestjs/common";
 import * as ExcelJS from "exceljs";
 import type { CellValue, Row } from "exceljs";
+import JSZip = require("jszip");
 import type {
   PaginatedPostulantes,
   Postulante,
@@ -65,8 +66,7 @@ export class ExcelPostulanteRepository implements PostulanteRepository {
   }
 
   private async loadRows(modifiedAt: number): Promise<Postulante[]> {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(this.workbookPath);
+    const workbook = await loadCompatibleWorkbook(this.workbookPath);
     const worksheet = workbook.getWorksheet("postulantes");
     if (!worksheet) {
       throw new Error('El archivo XLSX no contiene la hoja "postulantes"');
@@ -89,10 +89,50 @@ export class ExcelPostulanteRepository implements PostulanteRepository {
   }
 }
 
+export async function loadCompatibleWorkbook(path: string): Promise<ExcelJS.Workbook> {
+  const workbook = new ExcelJS.Workbook();
+  try {
+    await workbook.xlsx.readFile(path);
+    return workbook;
+  } catch (error) {
+    const source = await readFile(path);
+    const zip = await JSZip.loadAsync(source);
+    const workbookXml = await zip.file("xl/workbook.xml")?.async("string");
+    if (!workbookXml?.includes("<x:workbook")) throw error;
+
+    const names = Object.keys(zip.files).filter(
+      (name) => name.startsWith("xl/") && name.endsWith(".xml"),
+    );
+    await Promise.all(
+      names.map(async (name) => {
+        const entry = zip.file(name);
+        if (!entry) return;
+        const xml = await entry.async("string");
+        if (!xml.includes("<x:")) return;
+        const compatibleXml = xml
+          .replace(/<(\/?)x:/g, "<$1")
+          .replace(
+            'xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"',
+            'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"',
+          )
+          .replace(/<tableParts\b[\s\S]*?<\/tableParts>/g, "");
+        zip.file(name, compatibleXml);
+      }),
+    );
+
+    const normalized = await zip.generateAsync({ type: "nodebuffer" });
+    const compatibleWorkbook = new ExcelJS.Workbook();
+    await compatibleWorkbook.xlsx.load(new Uint8Array(normalized).buffer);
+    return compatibleWorkbook;
+  }
+}
+
 function buildHeaderMap(row: Row): Map<string, number> {
   const headers = new Map<string, number>();
   row.eachCell((cell, column) => {
-    headers.set(headerKey(cellText(cell.value)), column);
+    const key = headerKey(cellText(cell.value));
+    headers.set(key, column);
+    if (key === "id_postulante") headers.set("id", column);
   });
   return headers;
 }
@@ -141,7 +181,7 @@ function normalize(value: string): string {
     .toLocaleLowerCase("es");
 }
 
-function cellText(value: CellValue): string {
+export function cellText(value: CellValue): string {
   if (value === null || value === undefined) return "";
   if (value instanceof Date) return value.toISOString();
   if (typeof value !== "object") return String(value).trim();
