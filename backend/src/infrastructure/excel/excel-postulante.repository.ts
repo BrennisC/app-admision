@@ -123,7 +123,10 @@ function mapPostulante(
 }
 
 function hasContent(row: Row): boolean {
-  return row.values.some((value) => cellText(value as CellValue) !== "");
+  for (let column = 1; column <= row.cellCount; column += 1) {
+    if (cellText(row.getCell(column).value) !== "") return true;
+  }
+  return false;
 }
 
 function headerKey(value: string): string {
