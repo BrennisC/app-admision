@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import ExcelJS from "exceljs";
+import * as ExcelJS from "exceljs";
 import { ExcelPostulanteRepository } from "./excel-postulante.repository";
 
 describe("ExcelPostulanteRepository", () => {

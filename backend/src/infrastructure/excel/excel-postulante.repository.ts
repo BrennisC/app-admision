@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
 import { Injectable } from "@nestjs/common";
-import ExcelJS, { type CellValue, type Row } from "exceljs";
+import * as ExcelJS from "exceljs";
+import type { CellValue, Row } from "exceljs";
 import type {
   PaginatedPostulantes,
   Postulante,
@@ -19,14 +20,13 @@ export class ExcelPostulanteRepository implements PostulanteRepository {
 
   async findAll(query: PostulantesQuery): Promise<PaginatedPostulantes> {
     const rows = await this.getRows();
-    const search = normalize(query.search ?? "");
+    const searchTerms = normalize(query.search ?? "").split(/\s+/).filter(Boolean);
     const estado = normalize(query.estado ?? "");
     const filtered = rows.filter((postulante) => {
-      const matchesSearch =
-        !search ||
-        normalize(
-          `${postulante.dni} ${postulante.nombres} ${postulante.apellidos} ${postulante.carrera}`,
-        ).includes(search);
+      const searchable = normalize(
+        `${postulante.dni} ${postulante.nombres} ${postulante.apellidos} ${postulante.carrera}`,
+      );
+      const matchesSearch = searchTerms.every((term) => searchable.includes(term));
       const matchesEstado = !estado || normalize(postulante.estado) === estado;
       return matchesSearch && matchesEstado;
     });
@@ -153,7 +153,9 @@ function cellText(value: CellValue): string {
 
 function numberValue(value: CellValue): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  const parsed = Number(cellText(value).replace(",", "."));
+  const text = cellText(value);
+  if (!text) return null;
+  const parsed = Number(text.replace(",", "."));
   return Number.isFinite(parsed) ? parsed : null;
 }
 

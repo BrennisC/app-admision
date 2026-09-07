@@ -1,9 +1,5 @@
-import Image from "next/image";
+import { ApplicantsDashboard } from "@/components/applicants-dashboard";
 
 export default function Home() {
-  return (
-    <div>
-        Hola mundo
-    </div>
-  );
+  return <ApplicantsDashboard />;
 }

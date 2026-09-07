@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sistema de Admision
 
-## Getting Started
+Primer incremento funcional del TPS de Admision y Tesoreria. La aplicacion consulta los 7,693 registros historicos de `postulantes.xlsx` mediante una API NestJS y los presenta en una interfaz Next.js con busqueda, filtros y paginacion.
 
-First, run the development server:
+## Requisitos
+
+- Node.js 20 o superior.
+- pnpm 10.
+- `postulantes.xlsx` en la raiz del proyecto con una hoja llamada `postulantes`.
+
+## Inicio rapido
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Servicios disponibles:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Servicio | URL |
+| --- | --- |
+| Aplicacion web | http://localhost:3000 |
+| API | http://localhost:3001 |
+| Swagger | http://localhost:3001/docs |
+| Estado de la API | http://localhost:3001/health |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Comandos
 
-## Learn More
+```bash
+pnpm dev          # Inicia frontend y backend
+pnpm lint         # Valida ambos proyectos
+pnpm test         # Ejecuta pruebas del backend
+pnpm build        # Compila frontend y backend
+pnpm dev:web      # Inicia solo Next.js
+pnpm dev:api      # Inicia solo NestJS
+```
 
-To learn more about Next.js, take a look at the following resources:
+## API implementada
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```http
+GET /health
+GET /postulantes?page=1&limit=20
+GET /postulantes?search=nombre&estado=Ingresante
+GET /postulantes/dni/:dni
+GET /postulantes/:id
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+La API mantiene el libro en modo de solo lectura y conserva una cache que se invalida cuando cambia la fecha de modificacion del archivo.
 
-## Deploy on Vercel
+## Configuracion
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Copia las variables requeridas desde `backend/.env.example` si necesitas cambiar puertos, origen CORS o ubicacion del XLSX. El frontend usa `NEXT_PUBLIC_API_URL`; su valor predeterminado es `http://localhost:3001`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Arquitectura
+
+El modulo de postulantes depende del contrato `PostulanteRepository`. `ExcelPostulanteRepository` es solamente el adaptador actual, por lo que una futura implementacion con Prisma puede reemplazarlo sin modificar el controlador ni el servicio de aplicacion.
+
+Consulta `PLAN_DESARROLLO.md` para ver las siguientes fases del TPS.
