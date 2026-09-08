@@ -7,7 +7,7 @@ import { DashboardSection } from "./dashboard/DashboardSection";
 import { PostulantesTable } from "./postulantes/PostulantesTable";
 import { EditApplicantModal } from "./postulantes/EditApplicantModal";
 import { ReportsSection } from "./reportes/ReportsSection";
-import { OperationsConsole } from "./operations/OperationsConsole";
+import { OperationsConsole, type ModuleId } from "./operations/OperationsConsole";
 import { API_URL } from "./shared/api";
 import type { Applicant, ApplicantsResponse, DashboardData, DashboardSelection } from "./shared/types";
 
@@ -82,11 +82,15 @@ export function ApplicantsDashboard({ token, user, onLogout }: { token: string; 
     return () => controller.abort();
   }, [section, revision, token, selection]);
 
-  function handleSection(next: AppSection, flowScreen?: string) {
+  function handleSection(next: AppSection) {
     setSection(next);
-    if (next === "flujo" && flowScreen) {
+  }
+
+  function goToModule(module: ModuleId, screen?: string) {
+    setSection(module);
+    if (screen) {
       window.setTimeout(() => {
-        window.dispatchEvent(new CustomEvent("open-operation", { detail: flowScreen }));
+        window.dispatchEvent(new CustomEvent("open-operation", { detail: screen }));
         document.getElementById("operaciones")?.scrollIntoView({ behavior: "smooth" });
       }, 30);
     }
@@ -105,7 +109,13 @@ export function ApplicantsDashboard({ token, user, onLogout }: { token: string; 
           totalFallback={response?.meta.total}
           selection={selection}
           onSelection={setSelection}
-          onGo={(s) => handleSection("flujo", s)}
+          onGo={(s) => {
+            if (s === "inscripcion") goToModule("inscripciones", "inscripcion");
+            else if (s === "tesoreria") goToModule("tesoreria", "tesoreria");
+            else if (s === "resultados") handleSection("resultados");
+            else if (s === "postulante") goToModule("inscripciones", "postulante");
+            else handleSection("inscripciones");
+          }}
         />
       )}
       {section === "reportes" && <ReportsSection token={token} dashboard={dashboard} />}
@@ -121,14 +131,22 @@ export function ApplicantsDashboard({ token, user, onLogout }: { token: string; 
           isLoading={isLoading}
           error={error}
           canWrite={canWrite}
-          onNew={() => handleSection("flujo", "postulante")}
+          onNew={() => goToModule("inscripciones", "postulante")}
           onEdit={setEditing}
         />
       )}
-      {(section === "flujo" || section === "postulantes") && (
-        <div style={{ marginTop: section === "postulantes" ? 18 : 0 }}>
-          <OperationsConsole token={token} role={user.role} />
-        </div>
+      {(section === "inscripciones" ||
+        section === "tesoreria" ||
+        section === "resultados" ||
+        section === "catalogos" ||
+        section === "usuarios" ||
+        section === "auditoria") && (
+        <OperationsConsole
+          key={section}
+          token={token}
+          role={user.role}
+          module={section}
+        />
       )}
       {editing && (
         <EditApplicantModal

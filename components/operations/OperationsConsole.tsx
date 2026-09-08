@@ -40,7 +40,43 @@ const EMPTY_RESOURCES: Resources = {
   dashboard: {},
 };
 
-const SCREENS: { id: Screen; label: string; step: string }[] = [
+export type ModuleId =
+  | "inscripciones"
+  | "tesoreria"
+  | "resultados"
+  | "catalogos"
+  | "usuarios"
+  | "auditoria";
+
+const MODULES: Record<
+  ModuleId,
+  { eyebrow: string; title: string; screens: Screen[] }
+> = {
+  inscripciones: {
+    eyebrow: "Proceso de admisión",
+    title: "Inscripciones",
+    screens: ["postulante", "inscripcion", "ordenes"],
+  },
+  tesoreria: {
+    eyebrow: "Tesorería",
+    title: "Caja y pagos",
+    screens: ["ordenes", "tesoreria"],
+  },
+  resultados: {
+    eyebrow: "Proceso de admisión",
+    title: "Resultados",
+    screens: ["resultados"],
+  },
+  catalogos: {
+    eyebrow: "Proceso de admisión",
+    title: "Catálogos",
+    screens: ["catalogos"],
+  },
+  usuarios: { eyebrow: "Sistema", title: "Usuarios", screens: ["usuarios"] },
+  auditoria: { eyebrow: "Sistema", title: "Auditoría", screens: ["auditoria"] },
+};
+
+const SCREEN_META: { id: Screen; label: string; step: string }[] = [
   { id: "postulante", label: "Nuevo postulante", step: "01" },
   { id: "inscripcion", label: "Inscripción", step: "02" },
   { id: "ordenes", label: "Órdenes", step: "03" },
@@ -54,11 +90,18 @@ const SCREENS: { id: Screen; label: string; step: string }[] = [
 export function OperationsConsole({
   token,
   role,
+  module,
+  initialScreen,
 }: {
   token: string;
   role?: string;
+  module: ModuleId;
+  initialScreen?: Screen;
 }) {
-  const [screen, setScreen] = useState<Screen>("inscripcion");
+  const meta = MODULES[module];
+  const [screen, setScreen] = useState<Screen>(
+    initialScreen ?? meta.screens[0],
+  );
   const [resources, setResources] = useState<Resources>(EMPTY_RESOURCES);
   const [notice, setNotice] = useState<{
     tone: "success" | "error";
@@ -66,20 +109,24 @@ export function OperationsConsole({
   }>();
   const [loading, setLoading] = useState(true);
 
-  const visibleScreens = SCREENS.filter((item) => {
-    if (!role || role === "ADMIN") return true;
-    if (role === "ADMISION")
-      return [
-        "postulante",
-        "inscripcion",
-        "resultados",
-        "catalogos",
-        "ordenes",
-      ].includes(item.id);
-    if (role === "TESORERIA" || role === "CAJERO")
-      return ["ordenes", "tesoreria", "auditoria"].includes(item.id);
-    return ["ordenes", "resultados", "auditoria"].includes(item.id);
-  });
+  const visibleScreens = SCREEN_META.filter(
+    (item) =>
+      meta.screens.includes(item.id) &&
+      (() => {
+        if (!role || role === "ADMIN") return true;
+        if (role === "ADMISION")
+          return [
+            "postulante",
+            "inscripcion",
+            "resultados",
+            "catalogos",
+            "ordenes",
+          ].includes(item.id);
+        if (role === "TESORERIA" || role === "CAJERO")
+          return ["ordenes", "tesoreria", "auditoria"].includes(item.id);
+        return ["ordenes", "resultados", "auditoria"].includes(item.id);
+      })(),
+  );
 
   async function api<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${API_URL}${path}`, {
@@ -156,15 +203,20 @@ export function OperationsConsole({
 
   useEffect(() => {
     const timer = window.setTimeout(() => void refresh(), 0);
-    const openScreen = (event: Event) =>
-      setScreen((event as CustomEvent<Screen>).detail);
-    window.addEventListener("open-operation", openScreen);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("open-operation", openScreen);
-    };
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const openScreen = (event: Event) => {
+      const next = (event as CustomEvent<Screen>).detail;
+      if (meta.screens.includes(next)) setScreen(next);
+    };
+    window.addEventListener("open-operation", openScreen);
+    return () => {
+      window.removeEventListener("open-operation", openScreen);
+    };
+  }, [meta.screens]);
 
   async function submit(
     path: string,
@@ -192,38 +244,44 @@ export function OperationsConsole({
     }
   }
 
+  const activeScreen = visibleScreens.some((item) => item.id === screen)
+    ? screen
+    : (visibleScreens[0]?.id ?? meta.screens[0]);
+
   return (
     <section className={styles.panel} id="operaciones">
       <div className={styles.header}>
         <div>
-          <span className="eyebrow">Flujo operativo</span>
-          <h2>Procesar admisión</h2>
+          <span className="eyebrow">{meta.eyebrow}</span>
+          <h2>{meta.title}</h2>
         </div>
         <span className={styles.sync}>
           {loading ? "Sincronizando..." : "Datos actualizados"}
         </span>
       </div>
-      <div
-        className={styles.tabs}
-        role="tablist"
-        aria-label="Módulos del sistema"
-      >
-        {visibleScreens.map((item) => (
-          <button
-            key={item.id}
-            className={screen === item.id ? styles.active : ""}
-            onClick={() => {
-              setScreen(item.id);
-              setNotice(undefined);
-            }}
-            role="tab"
-            aria-selected={screen === item.id}
-          >
-            <span>{item.step}</span>
-            {item.label}
-          </button>
-        ))}
-      </div>
+      {visibleScreens.length > 1 && (
+        <div
+          className={styles.tabs}
+          role="tablist"
+          aria-label="Secciones del módulo"
+        >
+          {visibleScreens.map((item) => (
+            <button
+              key={item.id}
+              className={activeScreen === item.id ? styles.active : ""}
+              onClick={() => {
+                setScreen(item.id);
+                setNotice(undefined);
+              }}
+              role="tab"
+              aria-selected={activeScreen === item.id}
+            >
+              <span>{item.step}</span>
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
       {notice && (
         <div
           className={`${styles.notice} ${notice.tone === "success" ? styles.success : styles.error}`}
@@ -233,24 +291,24 @@ export function OperationsConsole({
         </div>
       )}
       <div className={styles.screen}>
-        {screen === "postulante" && <ApplicantForm submit={submit} />}
-        {screen === "inscripcion" && (
+        {activeScreen === "postulante" && <ApplicantForm submit={submit} />}
+        {activeScreen === "inscripcion" && (
           <EnrollmentSection resources={resources} api={api} submit={submit} />
         )}
-        {screen === "ordenes" && <OrdersSection orders={resources.ordenes} />}
-        {screen === "tesoreria" && (
+        {activeScreen === "ordenes" && <OrdersSection orders={resources.ordenes} />}
+        {activeScreen === "tesoreria" && (
           <TreasurySection resources={resources} api={api} submit={submit} />
         )}
-        {screen === "resultados" && (
+        {activeScreen === "resultados" && (
           <ResultsSection resources={resources} submit={submit} />
         )}
-        {screen === "catalogos" && (
+        {activeScreen === "catalogos" && (
           <CatalogsSection catalogs={resources.catalogos} submit={submit} />
         )}
-        {screen === "usuarios" && (
+        {activeScreen === "usuarios" && (
           <UsersSection rows={resources.usuarios} submit={submit} />
         )}
-        {screen === "auditoria" && <AuditSection rows={resources.auditoria} />}
+        {activeScreen === "auditoria" && <AuditSection rows={resources.auditoria} />}
       </div>
     </section>
   );
