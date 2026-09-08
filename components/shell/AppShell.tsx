@@ -45,7 +45,6 @@ export function AppShell({ section, onSection, user, error, sidebarNote, onLogou
           <a href="#tesoreria" onClick={(e) => { e.preventDefault(); onSection("flujo", "tesoreria"); }}><NavIcon name="wallet" />Caja y pagos</a>
           <a href="#resultados" onClick={(e) => { e.preventDefault(); onSection("flujo", "resultados"); }}><NavIcon name="chart" />Resultados</a>
         </nav>
-        <div className={styles.note}><span>Fuente activa</span><strong>sistema XLSX</strong><small>{sidebarNote}</small></div>
       </aside>
       <main className={styles.content}>
         <header className={styles.topbar}>
