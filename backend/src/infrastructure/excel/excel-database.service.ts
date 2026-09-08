@@ -155,14 +155,36 @@ export class ExcelDatabaseService implements OnModuleInit {
     workbook.creator = "Sistema de Admision";
     workbook.created = new Date();
     for (const [sheetName, headers] of Object.entries(SHEET_HEADERS)) {
-      const sheet = workbook.addWorksheet(sheetName);
-      sheet.addRow(headers);
-      sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-      sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF123F32" } };
-      for (const record of data[sheetName] ?? []) sheet.addRow(headers.map((header) => record[header] ?? ""));
+      const sheet = workbook.addWorksheet(sheetName, {
+        properties: { tabColor: { argb: "FF123F32" } },
+      });
+      const headerRow = sheet.addRow(headers);
+      headerRow.height = 22;
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 10 };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF123F32" } };
+        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+        cell.border = thinBorder();
+      });
+      for (const record of data[sheetName] ?? []) {
+        const row = sheet.addRow(
+          headers.map((header) => toCellValue(header, record[header])),
+        );
+        row.eachCell((cell, colNumber) => {
+          const header = headers[colNumber - 1];
+          const format = columnFormat(header);
+          if (format) cell.numFmt = format;
+          cell.alignment = { vertical: "middle", horizontal: columnAlign(header) };
+          cell.border = thinBorder();
+        });
+      }
+      sheet.columns = headers.map((header) => ({
+        header,
+        key: header,
+        width: columnWidth(header),
+      }));
       sheet.views = [{ state: "frozen", ySplit: 1 }];
       sheet.autoFilter = { from: "A1", to: sheet.getRow(1).getCell(headers.length).address };
-      sheet.columns.forEach((column) => { column.width = 18; });
     }
 
     const temporaryPath = `${this.workbookPath}.${randomUUID()}.tmp`;
@@ -210,6 +232,54 @@ function scalar(value: ExcelJS.CellValue): CellScalar {
   if (value instanceof Date) return value.toISOString();
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value;
   return cellText(value);
+}
+
+const DATE_COLUMNS = new Set([
+  "fecha", "fecha_nacimiento", "fecha_inicio", "fecha_fin", "fecha_examen",
+  "fecha_inscripcion", "fecha_emision", "fecha_vencimiento", "fecha_pago",
+  "fecha_apertura", "fecha_cierre",
+]);
+
+const MONEY_COLUMNS = new Set(["costo", "monto", "saldo_inicial", "saldo_final"]);
+
+function thinBorder(): Partial<ExcelJS.Borders> {
+  const side = { style: "thin" as const, color: { argb: "FFD9E0DB" } };
+  return { top: side, left: side, bottom: side, right: side };
+}
+
+function columnWidth(header: string): number {
+  if (header.startsWith("id_")) return 12;
+  if (MONEY_COLUMNS.has(header)) return 14;
+  if (header === "puntaje" || header === "puesto") return 10;
+  if (DATE_COLUMNS.has(header)) return 20;
+  if (["nombres", "apellidos", "direccion", "detalle", "descripcion", "concepto"].includes(header)) return 28;
+  if (["correo", "facultad", "carrera", "convocatoria", "referencia", "usuario", "nombre"].includes(header)) return 24;
+  if (["codigo", "codigo_pago", "voucher", "dni", "telefono", "estado", "condicion", "modalidad", "metodo_pago", "tipo", "tipo_colegio", "rol", "accion", "modulo", "registro"].includes(header)) return 16;
+  return 18;
+}
+
+function columnFormat(header: string): string | undefined {
+  if (MONEY_COLUMNS.has(header)) return '#,##0.00';
+  if (header === "puntaje") return '0.00';
+  if (DATE_COLUMNS.has(header)) return 'yyyy-mm-dd hh:mm';
+  if (header === "dni" || header === "voucher" || header === "telefono") return '@';
+  return undefined;
+}
+
+function columnAlign(header: string): "left" | "center" | "right" {
+  if (header.startsWith("id_") || header === "puntaje" || header === "puesto") return "center";
+  if (MONEY_COLUMNS.has(header)) return "right";
+  if (DATE_COLUMNS.has(header) || header === "estado" || header === "condicion") return "center";
+  return "left";
+}
+
+function toCellValue(header: string, value: CellScalar | undefined): string | number | boolean | Date {
+  if (value === null || value === undefined) return "";
+  if (DATE_COLUMNS.has(header) && typeof value === "string" && value) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return value === null ? "" : value;
 }
 
 function seedCatalogs(data: WorkbookData): void {

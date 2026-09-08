@@ -195,15 +195,38 @@ export class OperacionesService {
     });
   }
 
-  dashboard() {
-    return this.database.read((data) => ({
-      postulantes: data.postulantes.length,
-      inscripciones: data.inscripciones.length,
-      ordenesPendientes: data.ordenes_pago.filter((row) => row.estado === "PENDIENTE").length,
-      pagos: data.pagos.filter((row) => row.estado === "CONFIRMADO").length,
-      recaudacion: round(data.pagos.filter((row) => row.estado === "CONFIRMADO").reduce((sum, row) => sum + Number(row.monto), 0)),
-      ingresantes: data.resultados.filter((row) => row.condicion === "INGRESANTE").length,
-    }));
+  dashboard(filters: { anio?: string; facultad?: string; tipoColegio?: string } = {}) {
+    return this.database.read((data) => {
+      const confirmados = data.pagos.filter((row) => row.estado === "CONFIRMADO");
+      const byYearBase = data.postulantes.filter(
+        (row) => matchText(row.facultad, filters.facultad) && matchText(row.tipo_colegio, filters.tipoColegio),
+      );
+      const postulantes = byYearBase.filter((row) => matchYear(row, filters.anio));
+      const scored = postulantes.filter((row) => isScored(row.puntaje));
+      return {
+        postulantes: postulantes.length,
+        inscripciones: data.inscripciones.length,
+        ordenesPendientes: data.ordenes_pago.filter((row) => row.estado === "PENDIENTE").length,
+        pagos: confirmados.length,
+        recaudacion: round(confirmados.reduce((sum, row) => sum + Number(row.monto), 0)),
+        ingresantes: data.resultados.filter((row) => row.condicion === "INGRESANTE").length,
+        porFacultad: top(countBy(postulantes, (row) => label(row.facultad)), 8),
+        porTipoColegio: countBy(postulantes, (row) => label(row.tipo_colegio)),
+        porEstadoInscripcion: countBy(data.inscripciones, (row) => label(row.estado, "SIN ESTADO")),
+        recaudacionPorMetodo: sumBy(confirmados, (row) => label(row.metodo_pago, "SIN MÉTODO"), (row) => Number(row.monto)),
+        pagosPorDia: lastDays(confirmados, 14),
+        resultadosPorCondicion: countBy(data.resultados, (row) => label(row.condicion, "SIN CONDICIÓN")),
+        porAnio: countByYear(byYearBase),
+        distribucionPuntajes: scoreBuckets(scored),
+        conPuntaje: scored.length,
+        sinPuntaje: postulantes.length - scored.length,
+        filtros: {
+          anios: distinctYears(data.postulantes),
+          facultades: distinctLabels(data.postulantes, (row) => String(row.facultad ?? "").trim()),
+          tiposColegio: distinctLabels(data.postulantes, (row) => String(row.tipo_colegio ?? "").trim()),
+        },
+      };
+    });
   }
 
   private audit(data: WorkbookData, user: AuthenticatedUser, accion: string, modulo: string, id: number, detalle: string): void {
@@ -223,4 +246,117 @@ function same(value: unknown, expected: string): boolean {
 
 function round(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+export interface BreakdownItem {
+  label: string;
+  value: number;
+}
+
+function label(value: unknown, fallback = "SIN DATO"): string {
+  const text = String(value ?? "").trim();
+  return text ? text.toUpperCase().slice(0, 60) : fallback;
+}
+
+function countBy(rows: DataRow[], key: (row: DataRow) => string): BreakdownItem[] {
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    const name = key(row);
+    totals.set(name, (totals.get(name) ?? 0) + 1);
+  }
+  return [...totals.entries()]
+    .map(([itemLabel, value]) => ({ label: itemLabel, value }))
+    .sort((a, b) => b.value - a.value);
+}
+
+function sumBy(rows: DataRow[], key: (row: DataRow) => string, amount: (row: DataRow) => number): BreakdownItem[] {
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    const name = key(row);
+    const current = Number(amount(row));
+    if (!Number.isFinite(current)) continue;
+    totals.set(name, round((totals.get(name) ?? 0) + current));
+  }
+  return [...totals.entries()]
+    .map(([itemLabel, value]) => ({ label: itemLabel, value: round(value) }))
+    .sort((a, b) => b.value - a.value);
+}
+
+function top(items: BreakdownItem[], limit: number): BreakdownItem[] {
+  return items.slice(0, limit);
+}
+
+function extractYear(row: DataRow): string {
+  const fromConvocatoria = String(row.convocatoria ?? "").match(/(\d{4})/)?.[1];
+  if (fromConvocatoria) return fromConvocatoria;
+  const date = new Date(String(row.fecha ?? ""));
+  const year = date.getFullYear();
+  return Number.isFinite(year) ? String(year) : "SIN AÑO";
+}
+
+function matchText(value: unknown, expected?: string): boolean {
+  if (!expected?.trim()) return true;
+  return String(value ?? "").trim().toLowerCase() === expected.trim().toLowerCase();
+}
+
+function matchYear(row: DataRow, expected?: string): boolean {
+  if (!expected?.trim()) return true;
+  return extractYear(row) === expected.trim();
+}
+
+function countByYear(rows: DataRow[]): BreakdownItem[] {
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    const year = extractYear(row);
+    totals.set(year, (totals.get(year) ?? 0) + 1);
+  }
+  return [...totals.entries()]
+    .map(([itemLabel, value]) => ({ label: itemLabel, value }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function distinctYears(rows: DataRow[]): string[] {
+  return [...new Set(rows.map(extractYear).filter((year) => year !== "SIN AÑO"))].sort();
+}
+
+function distinctLabels(rows: DataRow[], pick: (row: DataRow) => string): string[] {
+  return [...new Set(rows.map(pick).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function isScored(value: unknown): boolean {
+  return value !== "" && value !== null && value !== undefined && Number.isFinite(Number(value));
+}
+
+function scoreBuckets(rows: DataRow[]): BreakdownItem[] {
+  const buckets: BreakdownItem[] = [
+    { label: "0 – 10", value: 0 },
+    { label: "11 – 13", value: 0 },
+    { label: "14 – 16", value: 0 },
+    { label: "17 – 20", value: 0 },
+  ];
+  for (const row of rows) {
+    const score = Number(row.puntaje);
+    if (!Number.isFinite(score)) continue;
+    if (score <= 10) buckets[0].value += 1;
+    else if (score <= 13) buckets[1].value += 1;
+    else if (score <= 16) buckets[2].value += 1;
+    else buckets[3].value += 1;
+  }
+  return buckets;
+}
+
+function lastDays(rows: DataRow[], days: number): BreakdownItem[] {
+  const totals = new Map<string, number>();
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    totals.set(date.toISOString().slice(0, 10), 0);
+  }
+  for (const row of rows) {
+    const raw = String(row.fecha_pago ?? row.fecha ?? "");
+    if (!raw) continue;
+    const day = new Date(raw).toISOString().slice(0, 10);
+    if (totals.has(day)) totals.set(day, round((totals.get(day) ?? 0) + Number(row.monto)));
+  }
+  return [...totals.entries()].map(([itemLabel, value]) => ({ label: itemLabel.slice(5), value }));
 }

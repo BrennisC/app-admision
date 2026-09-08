@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser, Roles } from "../auth/auth.decorators";
 import type { AuthenticatedUser } from "../auth/auth.types";
@@ -12,6 +12,7 @@ import {
   RegistrarPagoDto,
   RegistrarResultadoDto,
 } from "./operaciones.dto";
+import { DashboardQueryDto } from "./dashboard-query.dto";
 import { OperacionesService } from "./operaciones.service";
 
 @ApiTags("operaciones")
@@ -39,6 +40,6 @@ export class OperacionesController {
 
   @Get("resultados") resultados() { return this.service.resultados(); }
   @Post("resultados") @Roles("ADMIN", "ADMISION") registrarResultado(@Body() dto: RegistrarResultadoDto, @CurrentUser() user: AuthenticatedUser) { return this.service.registrarResultado(dto, user); }
-  @Get("dashboard") dashboard() { return this.service.dashboard(); }
-  @Get("reportes/resumen") dashboardReport() { return this.service.dashboard(); }
+  @Get("dashboard") dashboard(@Query() query: DashboardQueryDto) { return this.service.dashboard(query); }
+  @Get("reportes/resumen") dashboardReport(@Query() query: DashboardQueryDto) { return this.service.dashboard(query); }
 }

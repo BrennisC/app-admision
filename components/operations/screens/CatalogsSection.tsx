@@ -97,7 +97,8 @@ export function CatalogsSection({
             <input name="codigo" required />
           </Field>
           <Field label="Facultad">
-            <select name="idFacultad">
+            <select name="idFacultad" required>
+              <option value="">Seleccionar</option>
               {catalogs.facultades.map((row) => (
                 <option
                   key={text(row.id_facultad)}
@@ -106,6 +107,11 @@ export function CatalogsSection({
                   {text(row.nombre)}
                 </option>
               ))}
+              {!catalogs.facultades.length && (
+                <option value="" disabled>
+                  Todavía no hay facultades cargadas
+                </option>
+              )}
             </select>
           </Field>
           <Field label="Nombre" wide>

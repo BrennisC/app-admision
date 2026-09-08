@@ -110,51 +110,48 @@ export function OperationsConsole({
       "/pagos",
       "/resultados",
       "/dashboard",
-    ];
+    ] as const;
+    const settled = await Promise.allSettled(paths.map((p) => api<unknown>(p)));
+    const value = <T,>(index: number, fallback: T): T =>
+      settled[index].status === "fulfilled" ? (settled[index].value as T) : fallback;
+    const denied = settled
+      .map((r, i) => ({ r, path: paths[i] }))
+      .filter(({ r }) => r.status === "rejected")
+      .map(({ path }) => path);
+    let auditoria: Row[] = [];
+    let usuarios: Row[] = [];
     try {
-      const [
-        catalogos,
-        inscripciones,
-        ordenes,
-        cajas,
-        pagos,
-        resultados,
-        dashboard,
-      ] = await Promise.all(paths.map((p) => api<unknown>(p)));
-      let auditoria: Row[] = [];
-      let usuarios: Row[] = [];
-      try {
-        auditoria = await api<Row[]>("/auditoria");
-      } catch {
-        /* Solo administradores. */
-      }
-      try {
-        usuarios = await api<Row[]>("/usuarios");
-      } catch {
-        /* Solo administradores. */
-      }
-      setResources({
-        catalogos: catalogos as Catalogs,
-        inscripciones: inscripciones as Row[],
-        ordenes: ordenes as Row[],
-        cajas: cajas as Row[],
-        pagos: pagos as Row[],
-        resultados: resultados as Row[],
-        auditoria,
-        usuarios,
-        dashboard: dashboard as Row,
-      });
-    } catch (error) {
+      auditoria = await api<Row[]>("/auditoria");
+    } catch {
+      /* Solo administradores. */
+    }
+    try {
+      usuarios = await api<Row[]>("/usuarios");
+    } catch {
+      /* Solo administradores. */
+    }
+    setResources({
+      catalogos: value<Catalogs>(0, EMPTY_RESOURCES.catalogos),
+      inscripciones: value<Row[]>(1, []),
+      ordenes: value<Row[]>(2, []),
+      cajas: value<Row[]>(3, []),
+      pagos: value<Row[]>(4, []),
+      resultados: value<Row[]>(5, []),
+      auditoria,
+      usuarios,
+      dashboard: value<Row>(6, {}),
+    });
+    if (denied.length) {
+      const noAccess = denied.filter((p) => p === "/cajas" || p === "/pagos");
       setNotice({
         tone: "error",
         text:
-          error instanceof Error
-            ? error.message
-            : "No se pudieron cargar las operaciones",
+          noAccess.length === denied.length
+            ? "Tu rol no tiene acceso a caja y pagos; el resto de módulos cargó con normalidad."
+            : `No se pudieron cargar: ${denied.join(", ")}`,
       });
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }
 
   useEffect(() => {

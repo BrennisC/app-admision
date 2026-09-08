@@ -9,9 +9,11 @@ import { EditApplicantModal } from "./postulantes/EditApplicantModal";
 import { ReportsSection } from "./reportes/ReportsSection";
 import { OperationsConsole } from "./operations/OperationsConsole";
 import { API_URL } from "./shared/api";
-import type { Applicant, ApplicantsResponse, DashboardData } from "./shared/types";
+import type { Applicant, ApplicantsResponse, DashboardData, DashboardSelection } from "./shared/types";
 
 const PAGE_SIZE = 15;
+
+const EMPTY_SELECTION: DashboardSelection = { anio: "", facultad: "", tipoColegio: "" };
 
 export function ApplicantsDashboard({ token, user, onLogout }: { token: string; user: SessionUser; onLogout: () => void }) {
   const [section, setSection] = useState<AppSection>("postulantes");
@@ -24,6 +26,7 @@ export function ApplicantsDashboard({ token, user, onLogout }: { token: string; 
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [editing, setEditing] = useState<Applicant | null>(null);
+  const [selection, setSelection] = useState<DashboardSelection>(EMPTY_SELECTION);
   const deferredSearch = useDeferredValue(search);
 
   useEffect(() => {
@@ -63,7 +66,12 @@ export function ApplicantsDashboard({ token, user, onLogout }: { token: string; 
     const controller = new AbortController();
     async function loadDashboard() {
       try {
-        const result = await fetch(`${API_URL}/dashboard`, {
+        const params = new URLSearchParams();
+        if (selection.anio) params.set("anio", selection.anio);
+        if (selection.facultad) params.set("facultad", selection.facultad);
+        if (selection.tipoColegio) params.set("tipoColegio", selection.tipoColegio);
+        const query = params.toString();
+        const result = await fetch(`${API_URL}/dashboard${query ? `?${query}` : ""}`, {
           signal: controller.signal,
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -72,7 +80,7 @@ export function ApplicantsDashboard({ token, user, onLogout }: { token: string; 
     }
     void loadDashboard();
     return () => controller.abort();
-  }, [section, revision, token]);
+  }, [section, revision, token, selection]);
 
   function handleSection(next: AppSection, flowScreen?: string) {
     setSection(next);
@@ -92,7 +100,13 @@ export function ApplicantsDashboard({ token, user, onLogout }: { token: string; 
   return (
     <AppShell section={section} onSection={handleSection} user={user} error={error} sidebarNote={sidebarNote} onLogout={onLogout}>
       {section === "resumen" && (
-        <DashboardSection dashboard={dashboard} totalFallback={response?.meta.total} onGo={(s) => handleSection("flujo", s)} />
+        <DashboardSection
+          dashboard={dashboard}
+          totalFallback={response?.meta.total}
+          selection={selection}
+          onSelection={setSelection}
+          onGo={(s) => handleSection("flujo", s)}
+        />
       )}
       {section === "reportes" && <ReportsSection token={token} dashboard={dashboard} />}
       {(section === "postulantes" || section === "resumen") && (

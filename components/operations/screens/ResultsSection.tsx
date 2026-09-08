@@ -78,6 +78,11 @@ export function ResultsSection({
                 Inscripción #{text(row.id_inscripcion)}
               </option>
             ))}
+            {!confirmed.length && (
+              <option value="" disabled>
+                Sin inscripciones confirmadas — primero confirma una pagada
+              </option>
+            )}
           </select>
         </Field>
         <Field label="Puntaje">

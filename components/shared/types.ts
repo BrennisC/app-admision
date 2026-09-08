@@ -37,6 +37,23 @@ export interface ApplicantsResponse {
   meta: { page: number; limit: number; total: number; totalPages: number };
 }
 
+export interface BreakdownItem {
+  label: string;
+  value: number;
+}
+
+export interface DashboardFilters {
+  anios: string[];
+  facultades: string[];
+  tiposColegio: string[];
+}
+
+export interface DashboardSelection {
+  anio: string;
+  facultad: string;
+  tipoColegio: string;
+}
+
 export interface DashboardData {
   postulantes: number;
   inscripciones: number;
@@ -44,7 +61,23 @@ export interface DashboardData {
   pagos: number;
   recaudacion: number;
   ingresantes: number;
+  porFacultad?: BreakdownItem[];
+  porTipoColegio?: BreakdownItem[];
+  porEstadoInscripcion?: BreakdownItem[];
+  recaudacionPorMetodo?: BreakdownItem[];
+  pagosPorDia?: BreakdownItem[];
+  resultadosPorCondicion?: BreakdownItem[];
+  porAnio?: BreakdownItem[];
+  distribucionPuntajes?: BreakdownItem[];
+  conPuntaje?: number;
+  sinPuntaje?: number;
+  filtros?: DashboardFilters;
 }
 
-export type Submit = (path: string, data: Row, success: string, method?: string) => Promise<boolean>;
+export type Submit = (
+  path: string,
+  data: Row,
+  success: string,
+  method?: string,
+) => Promise<boolean>;
 export type Api = <T>(path: string, init?: RequestInit) => Promise<T>;

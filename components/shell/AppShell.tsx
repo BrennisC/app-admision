@@ -42,7 +42,7 @@ export function AppShell({
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
           <div className={styles.mark} aria-hidden="true">
-            UA
+            <img src="/admision.svg" alt="UA" />
           </div>
           <div>
             <strong>Admisión UNAS</strong>
@@ -128,6 +128,21 @@ export function AppShell({
             Resultados
           </a>
         </nav>
+        <div className={styles.footer}>
+          <div className={styles.session}>
+            <span className={styles.sessionAvatar} aria-hidden="true">
+              {initials(user.name, "")}
+            </span>
+            <span className={styles.sessionInfo}>
+              <strong>{user.name}</strong>
+              <small>{user.role}</small>
+            </span>
+          </div>
+          <button type="button" className={styles.logout} onClick={onLogout}>
+            <NavIcon name="logout" />
+            <span>Cerrar sesión</span>
+          </button>
+        </div>
       </aside>
       <main className={styles.content}>
         <header className={styles.topbar}>

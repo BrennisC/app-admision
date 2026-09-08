@@ -58,4 +58,38 @@ describe("OperacionesService", () => {
 
     expect(result).toMatchObject({ id_inscripcion: 1, condicion: "INGRESANTE" });
   });
+
+  it("groups postulantes by year and buckets scores", async () => {
+    data.postulantes.push(
+      { id_postulante: 2, dni: "11111111", nombres: "Ana", apellidos: "Paz", convocatoria: "2025-I", facultad: "Ingenieria", tipo_colegio: "Estatal", puntaje: 12 },
+      { id_postulante: 3, dni: "22222222", nombres: "Luis", apellidos: "Sol", convocatoria: "2025-II", facultad: "Ingenieria", tipo_colegio: "Privado", puntaje: 18 },
+    );
+
+    const dashboard = await service.dashboard({});
+
+    expect(dashboard.porAnio).toEqual([
+      { label: "2025", value: 2 },
+      { label: "SIN AÑO", value: 1 },
+    ]);
+    expect(dashboard.distribucionPuntajes).toEqual([
+      { label: "0 – 10", value: 0 },
+      { label: "11 – 13", value: 1 },
+      { label: "14 – 16", value: 0 },
+      { label: "17 – 20", value: 1 },
+    ]);
+    expect(dashboard.conPuntaje).toBe(2);
+    expect(dashboard.filtros.anios).toEqual(["2025"]);
+  });
+
+  it("filters postulante charts by facultad and tipo de colegio", async () => {
+    data.postulantes.push(
+      { id_postulante: 2, dni: "11111111", nombres: "Ana", apellidos: "Paz", convocatoria: "2025-I", facultad: "Ingenieria", tipo_colegio: "Estatal", puntaje: 12 },
+      { id_postulante: 3, dni: "22222222", nombres: "Luis", apellidos: "Sol", convocatoria: "2025-I", facultad: "Derecho", tipo_colegio: "Privado", puntaje: 15 },
+    );
+
+    const dashboard = await service.dashboard({ facultad: "ingenieria", tipoColegio: "estatal" });
+
+    expect(dashboard.postulantes).toBe(1);
+    expect(dashboard.porFacultad).toEqual([{ label: "INGENIERIA", value: 1 }]);
+  });
 });

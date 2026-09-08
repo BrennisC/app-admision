@@ -1,9 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styles from "./ReportsSection.module.css";
 import { API_URL, exportRowsToCsv } from "../shared/api";
-import type { DashboardData } from "../shared/types";
+import type { BreakdownItem, DashboardData } from "../shared/types";
+import { BarsChart, ChartCard, DonutChart } from "../dashboard/charts";
+
+function aggregate(rows: Record<string, string | number | null>[], field: string, amountField?: string): BreakdownItem[] {
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    const key = String(row[field] ?? "SIN DATO").trim().toUpperCase().slice(0, 40) || "SIN DATO";
+    const amount = amountField ? Number(row[amountField]) : 1;
+    if (!Number.isFinite(amount)) continue;
+    totals.set(key, (totals.get(key) ?? 0) + (amountField ? Math.round(amount * 100) / 100 : 1));
+  }
+  return [...totals.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 8);
+}
 
 export function ReportsSection({
   token,
@@ -47,6 +59,15 @@ export function ReportsSection({
     return () => controller.abort();
   }, [tab, token]);
 
+  const chart = useMemo(() => {
+    if (!rows.length) return null;
+    if (tab === "pagos") return { title: "Pagos por método", items: aggregate(rows, "metodo_pago", "monto"), money: true, donut: false };
+    if (tab === "resultados") return { title: "Resultados por condición", items: aggregate(rows, "condicion"), money: false, donut: true };
+    return { title: "Cajas por estado", items: aggregate(rows, "estado"), money: false, donut: true };
+  }, [rows, tab]);
+
+  const chartFallback = tab === "pagos" ? dashboard?.recaudacionPorMetodo : tab === "resultados" ? dashboard?.resultadosPorCondicion : undefined;
+
   return (
     <section className={styles.panel} id="reportes-panel">
       <div className={styles.header}>
@@ -89,6 +110,17 @@ export function ReportsSection({
           </p>
         )}
         {error && <div className={styles.error}>{error}</div>}
+        {(chart ?? chartFallback) && !loading && (
+          <div className={styles.chart}>
+            <ChartCard title={chart?.title ?? "Distribución"} subtitle={chart?.money ? "Montos en soles" : "Conteo de registros"}>
+              {chart?.donut || (!chart && chartFallback) ? (
+                <DonutChart items={chart?.items ?? chartFallback} />
+              ) : (
+                <BarsChart items={chart?.items} money={chart?.money} />
+              )}
+            </ChartCard>
+          </div>
+        )}
         {loading ? (
           <div className={styles.empty}>Cargando {tab}…</div>
         ) : !rows.length ? (

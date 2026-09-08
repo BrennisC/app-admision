@@ -34,6 +34,7 @@ export function PostulantesTable({
   onNew,
   onEdit,
 }: Props) {
+  const hasFilters = Boolean(search || status);
   const firstResult = response?.meta.total
     ? (response.meta.page - 1) * response.meta.limit + 1
     : 0;
@@ -81,11 +82,24 @@ export function PostulantesTable({
           <span>Estado</span>
           <select value={status} onChange={(e) => onStatus(e.target.value)}>
             <option value="">Todos</option>
+            <option value="Activo">Activo</option>
             <option value="Ingresante">Ingresante</option>
             <option value="No Ingresante">No ingresante</option>
             <option value="Ausente">Ausente</option>
           </select>
         </label>
+        <button
+          type="button"
+          className={styles.clearButton}
+          onClick={() => {
+            onSearch("");
+            onStatus("");
+          }}
+          disabled={!hasFilters}
+          title={hasFilters ? "Quitar búsqueda y filtro de estado" : "No hay filtros aplicados"}
+        >
+          Limpiar
+        </button>
       </div>
       {error ? (
         <div className={styles.errorBox} role="alert">

@@ -109,6 +109,11 @@ export function EnrollmentSection({
                 {text(row.nombre)} · {text(row.estado)}
               </option>
             ))}
+            {!resources.catalogos.convocatorias.length && (
+              <option value="" disabled>
+                Sin convocatorias — créalas en Catálogos
+              </option>
+            )}
           </select>
         </Field>
         <Field label="Carrera">
@@ -119,6 +124,11 @@ export function EnrollmentSection({
                 {text(row.nombre)}
               </option>
             ))}
+            {!resources.catalogos.carreras.length && (
+              <option value="" disabled>
+                Sin carreras — créalas en Catálogos
+              </option>
+            )}
           </select>
         </Field>
         <Field label="Modalidad">
@@ -130,11 +140,17 @@ export function EnrollmentSection({
         </Field>
         <Field label="Concepto de pago">
           <select name="idConcepto" required>
+            <option value="">Seleccionar</option>
             {resources.catalogos.conceptosPago.map((row) => (
               <option key={text(row.id_concepto)} value={text(row.id_concepto)}>
                 {text(row.descripcion)} · S/ {text(row.monto)}
               </option>
             ))}
+            {!resources.catalogos.conceptosPago.length && (
+              <option value="" disabled>
+                Sin conceptos — créalos en Catálogos
+              </option>
+            )}
           </select>
         </Field>
         <FormActions label="Crear inscripción y orden" disabled={!applicant} />

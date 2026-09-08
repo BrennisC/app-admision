@@ -90,6 +90,26 @@
     background: #fbfcfb;
     font-size: 0.78rem;
 }
+.clearButton {
+    height: 42px;
+    padding: 0 16px;
+    border: 1px solid #d7ded9;
+    border-radius: 9px;
+    background: white;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.clearButton:hover:not(:disabled) {
+    color: var(--forest);
+    border-color: var(--forest);
+}
+.clearButton:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
 .tableWrap {
     min-height: 520px;
     overflow-x: auto;

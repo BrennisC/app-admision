@@ -118,6 +118,11 @@ export function TreasurySection({
                 {text(row.id_inscripcion)}
               </option>
             ))}
+            {!pendingOrders.length && (
+              <option value="" disabled>
+                Sin órdenes pendientes — crea una inscripción primero
+              </option>
+            )}
           </select>
         </Field>
         <Field label="Método">
