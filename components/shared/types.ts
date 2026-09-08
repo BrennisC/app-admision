@@ -42,16 +42,85 @@ export interface BreakdownItem {
   value: number;
 }
 
+export interface ConvocatoriaSummaryRow {
+  convocatoria: string;
+  totalPostulantes: number;
+  ingresantes: number;
+  noIngresantes: number;
+  porcentajeIngreso: number;
+  puntajePromedio: number;
+  recaudacionTotal: number;
+}
+
 export interface DashboardFilters {
   anios: string[];
   facultades: string[];
   tiposColegio: string[];
+  convocatorias: string[];
+  carreras: string[];
+  estadosAnaliticos: string[];
 }
 
 export interface DashboardSelection {
   anio: string;
   facultad: string;
   tipoColegio: string;
+  convocatoria: string;
+  carrera: string;
+  estadoAnalitico: string;
+}
+
+export interface AcademicMetrics {
+  puntajePromedio: number;
+  puntajeMaximo: number;
+  puntajeMinimo: number;
+  puntajePromedioIngresantes: number;
+  puntajePromedioNoIngresantes: number;
+  distribucionRangoPuntaje?: {
+    rango: string;
+    ingresantes: number;
+    noIngresantes: number;
+    enProceso: number;
+  }[];
+  puntajePorCarrera?: {
+    carrera: string;
+    ingresante: number;
+    noIngresante: number;
+    enProceso: number;
+  }[];
+  demandaDesempeno?: {
+    carrera: string;
+    facultad: string;
+    totalPostulantes: number;
+    puntajePromedio: number;
+  }[];
+  matrizFacultades?: {
+    facultad: string;
+    totalPostulantes: number;
+    ingresantes: number;
+    porcentajeIngreso: number;
+    puntajePromedio: number;
+  }[];
+  resultadoTipoColegio?: {
+    tipoColegio: string;
+    ingresantes: number;
+    noIngresantes: number;
+    enProceso: number;
+  }[];
+}
+
+export interface AnalisisEconomico {
+  recaudacionPorConvocatoria?: BreakdownItem[];
+  recaudacionPorTipoColegio?: BreakdownItem[];
+  recaudacionPorFacultad?: BreakdownItem[];
+  recaudacionPorMetodo?: BreakdownItem[];
+  recaudacionPorEstado?: BreakdownItem[];
+  totalRecaudacion?: number;
+  totalPagosConfirmados?: number;
+  promedioPorPostulante?: number;
+  posConCosto?: number;
+  sumaCostos?: number;
+  usaFuenteReal?: boolean;
 }
 
 export interface DashboardData {
@@ -61,17 +130,25 @@ export interface DashboardData {
   pagos: number;
   recaudacion: number;
   ingresantes: number;
+  totalCarreras?: number;
+  porcentajeIngreso?: number;
+  puntajePromedio?: number;
   porFacultad?: BreakdownItem[];
   porTipoColegio?: BreakdownItem[];
   porEstadoInscripcion?: BreakdownItem[];
   recaudacionPorMetodo?: BreakdownItem[];
   pagosPorDia?: BreakdownItem[];
   resultadosPorCondicion?: BreakdownItem[];
+  porEstadoAnalitico?: BreakdownItem[];
+  porConvocatoria?: BreakdownItem[];
+  matrizConvocatorias?: ConvocatoriaSummaryRow[];
   porAnio?: BreakdownItem[];
   distribucionPuntajes?: BreakdownItem[];
   conPuntaje?: number;
   sinPuntaje?: number;
   filtros?: DashboardFilters;
+  analisisAcademico?: AcademicMetrics;
+  analisisEconomico?: AnalisisEconomico;
 }
 
 export type Submit = (

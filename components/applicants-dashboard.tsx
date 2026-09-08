@@ -13,7 +13,14 @@ import type { Applicant, ApplicantsResponse, DashboardData, DashboardSelection }
 
 const PAGE_SIZE = 15;
 
-const EMPTY_SELECTION: DashboardSelection = { anio: "", facultad: "", tipoColegio: "" };
+const EMPTY_SELECTION: DashboardSelection = {
+  anio: "",
+  facultad: "",
+  tipoColegio: "",
+  convocatoria: "",
+  carrera: "",
+  estadoAnalitico: "",
+};
 
 export function ApplicantsDashboard({ token, user, onLogout }: { token: string; user: SessionUser; onLogout: () => void }) {
   const [section, setSection] = useState<AppSection>("postulantes");
@@ -70,6 +77,9 @@ export function ApplicantsDashboard({ token, user, onLogout }: { token: string; 
         if (selection.anio) params.set("anio", selection.anio);
         if (selection.facultad) params.set("facultad", selection.facultad);
         if (selection.tipoColegio) params.set("tipoColegio", selection.tipoColegio);
+        if (selection.convocatoria) params.set("convocatoria", selection.convocatoria);
+        if (selection.carrera) params.set("carrera", selection.carrera);
+        if (selection.estadoAnalitico) params.set("estadoAnalitico", selection.estadoAnalitico);
         const query = params.toString();
         const result = await fetch(`${API_URL}/dashboard${query ? `?${query}` : ""}`, {
           signal: controller.signal,
@@ -119,7 +129,7 @@ export function ApplicantsDashboard({ token, user, onLogout }: { token: string; 
         />
       )}
       {section === "reportes" && <ReportsSection token={token} dashboard={dashboard} />}
-      {(section === "postulantes" || section === "resumen") && (
+      {section === "postulantes" && (
         <PostulantesTable
           response={response}
           search={search}

@@ -12,4 +12,16 @@ export class DashboardQueryDto {
   @IsOptional()
   @IsString()
   tipoColegio?: string;
+
+  @IsOptional()
+  @IsString()
+  convocatoria?: string;
+
+  @IsOptional()
+  @IsString()
+  carrera?: string;
+
+  @IsOptional()
+  @IsString()
+  estadoAnalitico?: string;
 }
