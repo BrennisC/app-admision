@@ -16,7 +16,11 @@ export interface Session {
   user: SessionUser;
 }
 
-export function LoginScreen({ onAuthenticated }: { onAuthenticated: (session: Session) => void }) {
+export function LoginScreen({
+  onAuthenticated,
+}: {
+  onAuthenticated: (session: Session) => void;
+}) {
   const [username, setUsername] = useState("admin");
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("Admin123!");
@@ -34,10 +38,15 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: (session: Se
         body: JSON.stringify({ username, password }),
       });
       const body = (await response.json()) as Session & { message?: string };
-      if (!response.ok) throw new Error(body.message ?? "No se pudo iniciar la sesión");
+      if (!response.ok)
+        throw new Error(body.message ?? "No se pudo iniciar la sesión");
       onAuthenticated(body);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "No se pudo conectar con la API");
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "No se pudo conectar con la API",
+      );
     } finally {
       setLoading(false);
     }
@@ -49,9 +58,18 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: (session: Se
         <div className={styles.seal}>UA</div>
         <span>Sistema institucional</span>
         <h1>Admisión que se puede verificar.</h1>
-        <p>Postulantes, inscripciones y tesorería en un único flujo operativo con trazabilidad.</p>
+        <p>
+          Postulantes, inscripciones y tesorería en un único flujo operativo con
+          trazabilidad.
+        </p>
         <div className={styles.flow} aria-label="Flujo del sistema">
-          <span>Identidad</span><i /><span>Inscripción</span><i /><span>Pago</span><i /><span>Resultado</span>
+          <span>Identidad</span>
+          <i />
+          <span>Inscripción</span>
+          <i />
+          <span>Pago</span>
+          <i />
+          <span>Resultado</span>
         </div>
       </section>
       <section className={styles.cardWrap}>
@@ -59,7 +77,15 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: (session: Se
           <span className="eyebrow">Acceso seguro</span>
           <h2>Iniciar sesión</h2>
           <p>Ingresa tus credenciales asignadas.</p>
-          <label>Usuario<input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" required /></label>
+          <label>
+            Usuario
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              required
+            />
+          </label>
           <label>
             Contraseña
             <div className={styles.passwordField}>
@@ -75,15 +101,25 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: (session: Se
                 type="button"
                 className={styles.eye}
                 onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                aria-label={
+                  showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                }
+                title={
+                  showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                }
               >
                 {showPassword ? "🙈" : "👁️"}
               </button>
             </div>
           </label>
-          {error && <div className={styles.error} role="alert">{error}</div>}
-          <button type="submit" disabled={loading}>{loading ? "Validando..." : "Ingresar al sistema"}</button>
+          {error && (
+            <div className={styles.error} role="alert">
+              {error}
+            </div>
+          )}
+          <button type="submit" disabled={loading}>
+            {loading ? "Validando..." : "Ingresar al sistema"}
+          </button>
           <small>Acceso inicial local: admin / Admin123!</small>
         </form>
       </section>
