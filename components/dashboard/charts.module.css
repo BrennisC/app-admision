@@ -148,3 +148,193 @@
     grid-template-columns: 84px 1fr auto;
   }
 }
+
+/* Gauge Chart */
+.gaugeContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 2px;
+}
+
+.gaugeSvg {
+  width: 170px;
+  height: 95px;
+}
+
+.gaugeValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #17201d;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.gaugeSubtext {
+  font-size: 0.7rem;
+  color: #68736e;
+  margin-top: 2px;
+}
+
+.gaugeScale {
+  display: flex;
+  justify-content: space-between;
+  width: 150px;
+  font-size: 0.65rem;
+  color: #8a9490;
+  margin-top: 4px;
+}
+
+/* Matrix Table */
+.matrixWrapper {
+  overflow-x: auto;
+  width: 100%;
+  border: 1px solid #eef2ef;
+  border-radius: 6px;
+}
+
+.matrixTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.73rem;
+  white-space: nowrap;
+}
+
+.matrixTable th {
+  background: #f7faf8;
+  color: #3b4843;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-bottom: 2px solid #e2eae6;
+  text-align: right;
+}
+
+.matrixTable th:first-child {
+  text-align: left;
+}
+
+.matrixTable td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #eef2ef;
+  color: #17201d;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.matrixTable td:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+
+.matrixTable tbody tr:nth-child(even) {
+  background: #fafcfb;
+}
+
+.matrixTable tbody tr:hover {
+  background: #f0f6f3;
+}
+
+.matrixTotalRow td {
+  font-weight: 800;
+  background: #e9f3ee !important;
+  border-top: 2px solid #c2dad0;
+  border-bottom: none;
+  color: #0d2e24;
+}
+
+/* Academic Charts */
+.chartLegend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.68rem;
+  color: #68736e;
+  margin-bottom: 10px;
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.academicSvg {
+  width: 100%;
+  height: 175px;
+  display: block;
+}
+
+/* Interactive bar hover */
+.interactiveBar {
+  cursor: pointer;
+  transition: filter 0.15s, width 0.3s ease;
+}
+.interactiveBar:hover {
+  filter: brightness(1.15);
+}
+
+/* Bar tooltip */
+.tooltip {
+  position: absolute;
+  z-index: 20;
+  background: rgba(17, 31, 25, 0.92);
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  pointer-events: none;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+  transform: translateY(-100%);
+}
+.tooltip strong {
+  font-weight: 700;
+}
+
+/* Stacked / grouped tooltip */
+.stackedTooltip {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: rgba(17, 31, 25, 0.92);
+  color: #fff;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.72rem;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+}
+.stackedTooltip strong {
+  font-weight: 800;
+  margin-bottom: 2px;
+  display: block;
+}
+
+/* Trend tooltip */
+.trendTooltip {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  z-index: 20;
+  background: rgba(17, 31, 25, 0.88);
+  color: #fff;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  pointer-events: none;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.22);
+}
+.trendTooltip strong {
+  font-weight: 700;
+}
