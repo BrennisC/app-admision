@@ -333,25 +333,6 @@ export function DashboardSection({
 
         return (
           <div>
-            {/* Fuente de datos badge */}
-            <div style={{
-              marginBottom: "12px",
-              padding: "7px 14px",
-              borderRadius: "6px",
-              background: usaFuenteReal ? "#e6f4ee" : "#fff8e6",
-              border: `1px solid ${usaFuenteReal ? "#b2d8c4" : "#f0d799"}`,
-              fontSize: "0.72rem",
-              color: usaFuenteReal ? "#17593a" : "#7a5a00",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-            }}>
-              <span style={{ fontWeight: 800 }}>{usaFuenteReal ? "✓ Pagos confirmados" : "⚠ Datos del Excel (costos registrados)"}</span>
-              {usaFuenteReal
-                ? `— Se calculó desde ${totalPagos} pagos reales confirmados.`
-                : `— Se calculó desde el campo "costo" del Excel (${posConCosto} postulantes con costo registrado). Registra pagos para datos más precisos.`}
-            </div>
-
             {/* KPI cards económicas */}
             <EconomicKpiCards
               data={{
