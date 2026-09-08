@@ -142,8 +142,13 @@ function mapPostulante(
   headers: Map<string, number>,
   fallbackId: number,
 ): Postulante {
-  const text = (header: string) => cellText(row.getCell(headers.get(header) ?? 0).value);
-  const id = numberValue(row.getCell(headers.get("id") ?? 0).value);
+  const cellValue = (header: string): CellValue => {
+    const col = headers.get(header);
+    if (col === undefined) return null;
+    return row.getCell(col).value;
+  };
+  const text = (header: string) => cellText(cellValue(header));
+  const id = numberValue(cellValue("id"));
 
   return {
     id: id ?? fallbackId,
@@ -154,10 +159,10 @@ function mapPostulante(
     facultad: text("facultad"),
     carrera: text("carrera"),
     tipoColegio: text("tipo_de_colegio"),
-    costo: numberValue(row.getCell(headers.get("costo") ?? 0).value),
+    costo: numberValue(cellValue("costo")),
     voucher: text("voucher"),
-    fecha: dateValue(row.getCell(headers.get("fecha") ?? 0).value),
-    puntaje: numberValue(row.getCell(headers.get("puntaje") ?? 0).value),
+    fecha: dateValue(cellValue("fecha")),
+    puntaje: numberValue(cellValue("puntaje")),
     estado: text("estado"),
   };
 }

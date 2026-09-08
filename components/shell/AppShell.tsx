@@ -51,7 +51,6 @@ export function AppShell({ section, onSection, user, error, sidebarNote, onLogou
         <header className={styles.topbar}>
           <div><span className="eyebrow">{SECTION_TITLES[section].eyebrow}</span><h1>{SECTION_TITLES[section].title}</h1></div>
           <div className={styles.actions}>
-            <span className={`${styles.indicator} ${error ? styles.offline : ""}`}><i />{error ? "API sin conexión" : "API conectada"}</span>
             <div className={styles.user}>
               <button className={styles.avatar} type="button" aria-label="Cerrar sesión" onClick={onLogout}>{initials(user.name, "")}</button>
               <span><strong>{user.name}</strong><small>{user.role}</small></span>
